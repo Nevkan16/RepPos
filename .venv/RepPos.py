@@ -5,9 +5,13 @@ import time
 import threading
 import json
 import os
+import configparser
 
-# Path to the file with the saved window position
-window_position_file = 'window_position.json'
+# File to save the window position of "Replayer"
+window_position_file = 'rep_position.json'
+
+# File to save the position of the main application window
+CONFIG_FILE = 'win_position.ini'
 
 # Global variables
 hwnd = None
@@ -123,10 +127,30 @@ def monitor_window_position(log_text, exit_event):
         current_position = get_window_position(hwnd)
         if current_position:
             last_position = current_position  # Keep track of the last known position
-            add_log(f"x: {current_position['x']}, y: {current_position['y']}, "
-                    f"width: {current_position['width']}, height: {current_position['height']}")
+            add_log(f"x: {current_position['x']},\ny: {current_position['y']},\n"
+                    f"width: {current_position['width']},\nheight: {current_position['height']}")
 
         time.sleep(2)
+
+def save_win_position(root):
+    """Save the current position of the window to a config file."""
+    config = configparser.ConfigParser()
+    config['WindowPosition'] = {
+        'x': root.winfo_x(),
+        'y': root.winfo_y()
+    }
+    with open(CONFIG_FILE, 'w') as configfile:
+        config.write(configfile)
+
+def load_win_position():
+    """Load the window position from the config file."""
+    config = configparser.ConfigParser()
+    config.read(CONFIG_FILE)
+    if 'WindowPosition' in config:
+        x = config.getint('WindowPosition', 'x', fallback=100)
+        y = config.getint('WindowPosition', 'y', fallback=100)
+        return x, y
+    return 100, 100
 
 def add_log(message):
     log_text.config(state=tk.NORMAL)
@@ -148,8 +172,11 @@ def main():
     global root, log_text, context_menu, exit_event
 
     root = tk.Tk()
-    root.title("Window Position")
-    root.geometry("280x120")
+    root.title("Replayer Position")
+
+    # Load window position for the main application window
+    x, y = load_win_position()
+    root.geometry(f"280x120+{x}+{y}")
     root.resizable(False, False)
 
     log_text = scrolledtext.ScrolledText(root, height=MAX_LOG_ROWS, width=50)
@@ -186,6 +213,7 @@ def main():
 
     def on_closing():
         finish_monitor()
+        save_win_position(root)  # Save the window position when closing
         root.destroy()
 
     root.protocol("WM_DELETE_WINDOW", on_closing)
