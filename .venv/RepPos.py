@@ -3,6 +3,11 @@ from tkinter import scrolledtext
 import ctypes
 import time
 import threading
+import json
+import os
+
+# Path to the file with the saved window position
+window_position_file = 'window_position.json'
 
 # Global variables
 hwnd = None
@@ -18,7 +23,12 @@ user32 = ctypes.WinDLL('user32', use_last_error=True)
 FindWindow = user32.FindWindowW
 IsWindow = user32.IsWindow
 IsWindowVisible = user32.IsWindowVisible
-GetWindowRect = user32.GetWindowRect  # Добавляем GetWindowRect для получения позиции окна
+GetWindowRect = user32.GetWindowRect
+SetWindowPos = user32.SetWindowPos
+
+# Constants for window positioning
+SWP_NOZORDER = 0x0004
+SWP_NOACTIVATE = 0x0010
 
 # Define RECT structure
 class RECT(ctypes.Structure):
@@ -28,6 +38,7 @@ class RECT(ctypes.Structure):
                 ("bottom", ctypes.c_long)]
 
 def get_window_position(hwnd):
+    """Получение текущей позиции и размеров окна"""
     if hwnd and IsWindow(hwnd):
         rect = RECT()
         GetWindowRect(hwnd, ctypes.byref(rect))
@@ -39,19 +50,50 @@ def get_window_position(hwnd):
         }
         return position
     else:
-        add_log("Invalid window handle. Cannot get window position.")
         return None
 
+def save_window_position_to_file(position):
+    """Сохранение позиции окна в файл .json"""
+    if position:
+        with open(window_position_file, 'w') as file:
+            json.dump(position, file)
+        add_log(f"Window position saved to file: {position}")
+
+def load_window_position_from_file():
+    """Загрузка сохранённой позиции окна из файла .json"""
+    if os.path.exists(window_position_file):
+        with open(window_position_file, 'r') as file:
+            position = json.load(file)
+            return position
+    else:
+        return None
+
+def set_window_position(hwnd, position):
+    """Установка позиции окна"""
+    if hwnd and IsWindow(hwnd) and position:
+        SetWindowPos(
+            hwnd,
+            None,
+            position['x'],
+            position['y'],
+            position['width'],
+            position['height'],
+            SWP_NOZORDER | SWP_NOACTIVATE
+        )
+
 def find_window_by_title(title):
+    """Поиск окна по заголовку"""
     hwnd = FindWindow(None, title)
-    if hwnd and IsWindowVisible(hwnd):  # Проверяем видимость окна
+    if hwnd and IsWindowVisible(hwnd):
         return hwnd
     else:
-        return None  # Возвращаем None, если окно не найдено или невидимо
+        return None
 
 def monitor_window_position(log_text, exit_event):
+    """Мониторинг окна и сохранение позиции при его закрытии, с постоянным отображением координат"""
     global hwnd
-    window_found = False  # Flag to track if the window has been found
+    window_found = False
+    last_position = None
 
     while not exit_event.is_set():
         hwnd = find_window_by_title(window_title)
@@ -60,6 +102,11 @@ def monitor_window_position(log_text, exit_event):
             if window_found:
                 add_log(f"Window '{window_title}' has been closed or is not visible.")
                 window_found = False
+
+                # Save the current position to the file only when the window closes
+                if last_position:
+                    save_window_position_to_file(last_position)
+
             time.sleep(2)
             continue
 
@@ -67,13 +114,17 @@ def monitor_window_position(log_text, exit_event):
             add_log(f"Window '{window_title}' found and is visible.")
             window_found = True
 
-        if hwnd and IsWindow(hwnd):
-            current_position = get_window_position(hwnd)
-            if current_position:
-                add_log(f"x - {current_position['x']},\n"
-                        f"y - {current_position['y']}.\n"
-                        f"w - {current_position['width']},\n"
-                        f"h - {current_position['height']}.")
+            # Load and apply the saved position if available
+            saved_position = load_window_position_from_file()
+            if saved_position:
+                set_window_position(hwnd, saved_position)
+
+        # Continuously track the current window position
+        current_position = get_window_position(hwnd)
+        if current_position:
+            last_position = current_position  # Keep track of the last known position
+            add_log(f"x: {current_position['x']}, y: {current_position['y']}, "
+                    f"width: {current_position['width']}, height: {current_position['height']}")
 
         time.sleep(2)
 
