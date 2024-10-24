@@ -6,6 +6,8 @@ import threading
 import json
 import os
 import configparser
+from tkinter import Tk, PhotoImage
+from PIL import Image, ImageTk
 
 # File to save the window position of "Replayer"
 window_position_file = 'rep_position.json'
@@ -173,6 +175,15 @@ def main():
 
     root = tk.Tk()
     root.title("Replayer Position")
+
+    # Попытка загрузки иконки
+    try:
+        img = Image.open("ico.png")
+        icon = ImageTk.PhotoImage(img)
+        root.iconphoto(True, icon)  # Устанавливаем иконку
+    except Exception as e:
+        print(f"Иконка не найдена или произошла ошибка: {e}")
+        # Можно установить альтернативную иконку или просто продолжить работу
 
     # Load window position for the main application window
     x, y = load_win_position()
