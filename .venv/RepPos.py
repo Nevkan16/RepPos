@@ -232,7 +232,7 @@ def main():
     start_button = tk.Button(root, text="Start", command=start_monitor)
     start_button.pack(side=tk.LEFT, padx=5, pady=5)
 
-    finish_button = tk.Button(root, text="Finish", command=finish_monitor, state="disabled")
+    finish_button = tk.Button(root, text="Stop", command=finish_monitor, state="disabled")
     finish_button.pack(side=tk.LEFT, padx=5, pady=5)
 
     # Automatically start the monitor
