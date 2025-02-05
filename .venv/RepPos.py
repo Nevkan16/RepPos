@@ -224,8 +224,28 @@ def main():
 
     def on_closing():
         finish_monitor()
-        save_win_position(root)  # Save the window position when closing
+        try:
+            save_win_position(root)  # Save the window position when closing
+        except Exception:
+            pass
         root.destroy()
+
+    def reset_to_default():
+        """Сбрасывает настройки окна к значениям по умолчанию и применяет их."""
+        default_position = {"x": -1915, "y": 1, "width": 1466, "height": 995}
+        with open(window_position_file, 'w') as file:
+            json.dump(default_position, file)
+
+        add_log("Default settings applied.")
+
+        # Применение новых настроек, если окно найдено
+        global hwnd
+        hwnd = find_window_by_title(window_title)
+        if hwnd:
+            set_window_position(hwnd, default_position)
+        else:
+            add_log("Window not found. Default settings saved but not applied.")
+
 
     root.protocol("WM_DELETE_WINDOW", on_closing)
 
@@ -234,6 +254,9 @@ def main():
 
     finish_button = tk.Button(root, text="Stop", command=finish_monitor, state="disabled")
     finish_button.pack(side=tk.LEFT, padx=5, pady=5)
+
+    default_button = tk.Button(root, text="Default", command=reset_to_default)
+    default_button.pack(side=tk.LEFT, padx=5, pady=5)
 
     # Automatically start the monitor
     start_monitor()
